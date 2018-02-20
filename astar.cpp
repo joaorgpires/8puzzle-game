@@ -1,0 +1,260 @@
+//A*
+#include <bits/stdc++.h>
+#define Right 6
+#define Left 4
+#define Up 2
+#define Down 8
+#define F first //pairs
+#define S second // pairs
+
+using namespace std;
+
+struct Node {
+  int state[3][3]; //configuracao
+  Node *par; //parent node
+  int move; //2 - up, 4 - left, 6 - right, 8 - down
+  int nn; //numero de nos no caminha a.k.a. a profundidade do no na arvore
+  int cost; //heuristic
+};
+
+typedef pair<int, Node*> pnd;
+list<int> path;
+priority_queue<pnd> pq;
+
+int in[10], fin[10], finalState[3][3];
+typedef pair<int, int> pii;
+
+bool test() {
+  int cnt1 = 0, cnt2 = 0;
+  
+  for(int i = 0; i < 8; i++) {
+    for(int j = i; j < 8; j++) {
+      if(in[j] < in[i]) cnt1++;
+      if(fin[j] < fin[i]) cnt2++;
+    }
+  }
+  
+  //printf("%d %d\n", cnt1, cnt2);
+  return !((cnt1 + cnt2) % 2);
+}
+
+bool cmp(int a[][3], int b[][3]) {
+  for(int i = 0; i < 3; i++) {
+    for(int j = 0; j < 3; j++) {
+      if(a[i][j] != b[i][j])
+	return false;
+    }
+  }
+  return true;
+}
+
+bool visited(Node* a) {
+  Node* par = a->par;
+  while(par != NULL) {
+    if(cmp(a->state, par->state)) return true;
+    par = par->par;
+  }
+  
+  return false;
+}
+
+pii find0(int tab[3][3]) {
+  pii pos;
+  for(int i = 0; i < 3; i++)
+    for(int j = 0; j < 3; j++)
+      if(tab[i][j] == 0) {
+	pos = pii(i, j);
+	break;
+      }
+  
+  return pos;
+}
+
+void fill(Node* a, Node* b) {
+  for(int i = 0; i < 3; i++) {
+    for(int j = 0; j < 3; j++) {
+      a->state[i][j] = b->state[i][j];;
+    }
+  }
+}
+
+void move2(Node* a, int i, int j) {
+  //i - 1
+  a->state[i][j] = a->state[i - 1][j];
+  a->state[i - 1][j] = 0;
+}
+
+void move4(Node* a, int i, int j) {
+  //j - 1
+  a->state[i][j] = a->state[i][j - 1];
+  a->state[i][j - 1] = 0;
+}
+
+void move6(Node* a, int i, int j) {
+  //j + 1
+  a->state[i][j] = a->state[i][j + 1];
+  a->state[i][j + 1] = 0;
+}
+
+void move8(Node* a, int i, int j) {
+  //i + 1
+  a->state[i][j] = a->state[i + 1][j];
+  a->state[i + 1][j] = 0;
+}
+
+pii find(int c) {
+  pii pos;
+  for(int i = 0; i < 3; i++) {
+    for(int j = 0; j < 3; j++) {
+      if(finalState[i][j] == c) {
+	pos = pii(i, j);
+	break;
+      }
+    }
+  }
+  
+  return pos;
+}
+
+//man distance
+int heuristic(Node* cur) {
+  int count = 0;
+  for(int i = 0; i < 3; i++) {
+    for(int j = 0; j < 3; j++) {
+      if(cur->state[i][j] != 0) {
+	pii pos = find(cur->state[i][j]);
+	count += abs(pos.F - i) + abs(pos.S - j);
+      }
+    }
+  }
+  
+  return count;
+}
+
+void addChilds(Node* cur) {
+  pii pos0 = find0(cur->state);
+  int i = pos0.F, j = pos0.S;
+  
+  Node* node2 = new Node();
+  Node* node4 = new Node();
+  Node* node6 = new Node();
+  Node* node8 = new Node();
+  fill(node2, cur); fill(node4, cur); fill(node6, cur); fill(node8, cur);
+  node2->par = cur; node4->par = cur; node6->par = cur; node8->par = cur;
+  node2->nn = cur->nn + 1; node4->nn = cur->nn + 1; node6->nn = cur->nn + 1; node8->nn = cur->nn + 1;
+  
+  if(i != 0) {
+    move2(node2, i, j);
+    node2->move = Up;
+    node2->cost = heuristic(node2);
+    pq.push(pnd(-node2->cost - node2->nn, node2));
+  }
+  if(j != 0) {
+    move4(node4, i, j);
+    node4->move = Left;
+      node4->cost = heuristic(node4);
+      pq.push(pnd(-node4->cost - node4->nn, node4));
+  }
+  if(i != 2) {
+    move8(node8, i, j);
+    node8->move = Down;
+    node8->cost = heuristic(node8);
+    pq.push(pnd(-node8->cost - node8->nn, node8));
+  }
+  if(j != 2) {
+    move6(node6, i, j);
+    node6->move = Right;
+    node6->cost = heuristic(node6);
+    pq.push(pnd(-node6->cost - node6->nn, node6));
+  }
+}
+
+void getPath(Node* cur) {
+  Node* par = cur;
+  while(par != NULL) {
+    path.push_front(par->move);
+    par = par->par;
+  }
+}
+
+int ans;
+void greedy() {
+  int nodes = 0;
+  while(!pq.empty()) {
+    pnd top = pq.top(); Node* cur = top.S; pq.pop();
+    nodes++;
+    //printf("%d\n", cur->move);
+    if(cmp(cur->state, finalState)) {
+      ans = cur->nn;
+      getPath(cur);
+      return;
+    }
+    addChilds(cur);
+
+    /* for(int i = 0; i < 3; i++) {
+      for(int j = 0; j < 3; j++) {
+	printf("%d ", cur->state[i][j]);
+      }
+      printf("\n");
+    }
+    printf("\n");*/
+  }
+
+  //caso seja necessario imprimir o numero de nos expandidos:
+  //printf("%d nodes expanded\n");
+}
+
+int main() {
+  
+  int p = 1;
+  
+  Node* first = new Node();
+  first->par = NULL;
+  first->move = Right; // Nao ha jogada inicial, apenas para completar
+  first->nn = 0;
+  
+  for(int i = 0; i < 3; i++) {
+    for(int j = 0; j < 3; j++) {
+      int num; scanf("%d", &num);
+      if(num != 0)
+	in[p++] = num;
+      
+      first->state[i][j] = num;
+    }
+  }
+
+  p = 0;
+  
+  for(int i = 0; i < 3; i++) {
+    for(int j = 0; j < 3; j++) {
+      int num; scanf("%d", &num);
+      if(num != 0)
+	fin[p++] = num;
+      
+      finalState[i][j] = num;
+    }
+  }
+  
+  bool hasSol = test();
+  
+  first->cost = heuristic(first);
+  pq.push(pnd(-first->cost, first));
+  
+  if(hasSol) {
+    printf("This puzzle has a solution!\n");
+    greedy();
+    printf("The solution can be achieved in %d moves.\nThis is an optimal solution.\n", ans);
+    printf("-------PATH TO SOLUTION:-------\n");
+    printf("%d", path.front()); path.pop_front();
+    while(!path.empty()) {
+      printf(" %d", path.front()); path.pop_front();
+    }
+    printf("\n");
+  }
+  
+  else {
+    printf("No solution.\n");
+  }
+  
+  return 0;
+}
